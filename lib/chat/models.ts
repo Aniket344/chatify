@@ -9,13 +9,21 @@ export interface ChatUser {
   email: string | null
   fullName: string | null
   id: string
+  bio?: string | null
+  statusText?: string | null
+  lastSeenAt?: string | null
 }
 
 export interface SendMessageInput {
   content: string
   conversationId: string
-  receiverId: string
+  /** Direct messages require receiver; group messages omit */
+  receiverId?: string | null
   senderId: string
+  messageType?: MessageRow["message_type"]
+  fileUrl?: string | null
+  replyToId?: string | null
+  forwardOfId?: string | null
 }
 
 export function mapProfileRowToChatUser(profile: {
@@ -23,12 +31,18 @@ export function mapProfileRowToChatUser(profile: {
   email: string | null
   full_name: string | null
   id: string
+  bio?: string | null
+  status_text?: string | null
+  last_seen_at?: string | null
 }): ChatUser {
   return {
     id: profile.id,
     email: profile.email,
     fullName: profile.full_name,
     avatarUrl: profile.avatar_url,
+    bio: profile.bio ?? null,
+    statusText: profile.status_text ?? null,
+    lastSeenAt: profile.last_seen_at ?? null,
   }
 }
 

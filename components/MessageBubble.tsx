@@ -1,97 +1,302 @@
-"use client";
+"use client"
 
-import { motion } from "framer-motion";
-import { formatMessageTime, getMessageStatus } from "@/lib/chat/format";
-import type { ChatUser, MessageRow } from "@/lib/chat/models";
-import UserAvatar from "./UserAvatar";
+import { useState } from "react"
+import { motion } from "framer-motion"
+import Image from "next/image"
+import { Copy, CornerUpLeft, Pencil, Share2, SmilePlus, Trash2 } from "lucide-react"
+import { formatMessageTime, getMessageStatus } from "@/lib/chat/format"
+import type { ChatUser, MessageRow } from "@/lib/chat/models"
+import type { ReactionRow } from "@/lib/chat/reactions"
+import { addReaction, removeReaction } from "@/lib/chat/reactions"
+import { cn } from "@/lib/cn"
+import { useAuth } from "@/hooks/useAuth"
+
+const QUICK = ["👍", "❤️", "😂", "😮", "😢", "🙏"]
+
+function Ticks({ status }: { status: ReturnType<typeof getMessageStatus> }) {
+  if (status === "Read") {
+    return (
+      <span className="inline-flex translate-y-[1px] text-[var(--tick-read)]" title="Read">
+        <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20">
+          <path
+            clipRule="evenodd"
+            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+            fillRule="evenodd"
+          />
+        </svg>
+        <svg className="-ml-1.5 h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20">
+          <path
+            clipRule="evenodd"
+            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+            fillRule="evenodd"
+          />
+        </svg>
+      </span>
+    )
+  }
+
+  if (status === "Delivered" || status === "Sent") {
+    return (
+      <span className="inline-flex translate-y-[1px] text-[var(--text-secondary)]" title={status}>
+        <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20">
+          <path
+            clipRule="evenodd"
+            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+            fillRule="evenodd"
+          />
+        </svg>
+        <svg className="-ml-1.5 h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20">
+          <path
+            clipRule="evenodd"
+            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+            fillRule="evenodd"
+          />
+        </svg>
+      </span>
+    )
+  }
+
+  if (status === "Sending") {
+    return (
+      <svg className="h-3 w-3 animate-spin text-[var(--text-secondary)]" fill="none" viewBox="0 0 24 24">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+        <path className="opacity-75" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" fill="currentColor" />
+      </svg>
+    )
+  }
+
+  return null
+}
 
 interface MessageBubbleProps {
-  isGroupStart: boolean;
-  isOwn: boolean;
-  message: MessageRow;
-  showStatus: boolean;
-  user: Pick<ChatUser, "avatarUrl" | "email" | "fullName">;
+  isGroupStart: boolean
+  isOwn: boolean
+  message: MessageRow
+  reactions?: ReactionRow[]
+  showStatus: boolean
+  user: Pick<ChatUser, "avatarUrl" | "email" | "fullName">
+  onReply?: (m: MessageRow) => void
+  onForward?: (m: MessageRow) => void
+  onEdit?: (m: MessageRow) => void
+  onDelete?: (m: MessageRow) => void
 }
 
 export default function MessageBubble({
-  isGroupStart,
+  isGroupStart: _isGroupStart,
   isOwn,
   message,
+  reactions = [],
   showStatus,
-  user,
+  user: _user,
+  onReply,
+  onForward,
+  onEdit,
+  onDelete,
 }: MessageBubbleProps) {
-  const status = getMessageStatus(message, isOwn);
+  const { currentUser } = useAuth()
+  const [menu, setMenu] = useState(false)
+  const status = getMessageStatus(message, isOwn)
+  const isDeleted = Boolean(message.deleted_at && message.deleted_for_everyone)
+  const showImage = message.message_type === "image" && message.file_url
+  const showFile = message.message_type === "file" && message.file_url
+  const showVoice = message.message_type === "voice" && message.file_url
 
-  const statusIcons = {
-    Sending: (
-      <svg className="h-3 w-3 animate-spin" fill="none" viewBox="0 0 24 24">
-        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-      </svg>
-    ),
-    Sent: (
-      <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
-        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-      </svg>
-    ),
-    Delivered: (
-      <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
-        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-      </svg>
-    ),
-    Read: (
-      <div className="relative">
-        <svg className="h-3 w-3 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-        </svg>
-        <svg className="absolute -right-1.5 h-3 w-3 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-        </svg>
-      </div>
-    ),
-  };
+  const grouped = reactions.reduce<Record<string, number>>((acc, r) => {
+    acc[r.emoji] = (acc[r.emoji] ?? 0) + 1
+    return acc
+  }, {})
+
+  const toggleReact = async (emoji: string) => {
+    const mine = reactions.some((x) => x.user_id === currentUser?.id && x.emoji === emoji)
+    try {
+      if (mine) {
+        await removeReaction(message.id, emoji)
+      } else {
+        await addReaction(message.id, emoji)
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const bubbleRadius = cn(
+    "relative max-w-[min(100%,520px)] px-2.5 py-1.5 text-sm leading-relaxed shadow-sm",
+    isOwn
+      ? "rounded-[10px] rounded-br-[4px] bg-[var(--bg-bubble-sent)] text-[var(--text-primary)]"
+      : "rounded-[10px] rounded-bl-[4px] bg-[var(--bg-bubble-received)] text-[var(--text-primary)] ring-1 ring-black/[0.04]"
+  )
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: isOwn ? 30 : -30, scale: 0.9 }}
       animate={{ opacity: 1, x: 0, scale: 1 }}
-      transition={{ type: "spring", stiffness: 500, damping: 30 }}
-     className={`flex items-end ${isOwn ? "justify-end" : "justify-start"}`}
+      className={cn("group relative flex", isOwn ? "justify-end" : "justify-start")}
+      initial={{ opacity: 0, x: isOwn ? 12 : -12, scale: 0.98 }}
+      transition={{ type: "spring", stiffness: 520, damping: 34 }}
     >
-      
-      
-
-      <div className={`max-w-[85%] sm:max-w-[70%] ${isOwn ? "items-end" : "items-start"} flex flex-col`}>
-        <motion.div
-          whileHover={{ scale: 1.02 }}
-          transition={{ type: "spring", stiffness: 400 }}
-          className={`relative overflow-hidden rounded-[28px] px-5 py-3 text-sm leading-6 shadow-2xl ${
-            isOwn
-              ? "bg-gradient-to-br from-violet-600 via-purple-600 to-blue-600 text-white"
-              : "bg-gradient-to-br from-slate-800/90 to-slate-900/90 text-slate-100 border border-white/10"
-          }`}
+      <div className={cn("flex max-w-[85%] flex-col sm:max-w-[70%]", isOwn ? "items-end" : "items-start")}>
+        <div
+          className={bubbleRadius}
+          onContextMenu={(e) => {
+            e.preventDefault()
+            setMenu(true)
+          }}
         >
-          {/* Shimmer effect on hover */}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-          
-          <p className="whitespace-pre-wrap break-words">{message.content}</p>
-        </motion.div>
-
-        <div className="mt-1.5 flex items-center gap-2 px-2 text-[10px] text-slate-400 sm:text-[11px]">
-          <span>{formatMessageTime(message.created_at)}</span>
-          {showStatus && status && (
-            <motion.span
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="flex items-center gap-1"
+          {message.reply_to_id ? (
+            <div className="mb-1 rounded-lg border-l-4 border-[var(--accent)] bg-black/[0.04] px-2 py-1 text-xs text-[var(--text-secondary)] dark:bg-white/[0.06]">
+              Replying to a message
+            </div>
+          ) : null}
+          {message.edited_at ? (
+            <span className="mb-1 block text-[10px] font-medium text-[var(--text-secondary)]">Edited</span>
+          ) : null}
+          {showImage ? (
+            <div className="relative -mx-0.5 overflow-hidden rounded-lg">
+              <Image
+                alt=""
+                className="max-h-64 w-full object-cover"
+                height={256}
+                src={message.file_url!}
+                unoptimized
+                width={400}
+              />
+            </div>
+          ) : null}
+          {showFile ? (
+            <a
+              className="flex items-center gap-2 text-[var(--accent)] underline"
+              href={message.file_url!}
+              rel="noreferrer"
+              target="_blank"
             >
-              {statusIcons[status as keyof typeof statusIcons] || status}
-            </motion.span>
-          )}
+              File attachment
+            </a>
+          ) : null}
+          {showVoice ? (
+            <audio className="h-8 w-full max-w-[240px]" controls preload="metadata" src={message.file_url!} />
+          ) : null}
+          {!showImage && !showFile && !showVoice ? (
+            <p className="whitespace-pre-wrap break-words">
+              {isDeleted ? (
+                <span className="italic text-[var(--text-secondary)]">This message was deleted</span>
+              ) : (
+                message.content
+              )}
+            </p>
+          ) : null}
+          <div className="mt-0.5 flex items-end justify-end gap-1.5 text-[11px] text-[var(--text-secondary)]">
+            <span className="pt-0.5 tabular-nums">{formatMessageTime(message.created_at)}</span>
+            {showStatus && isOwn ? <Ticks status={status} /> : null}
+          </div>
+        </div>
+
+        {Object.keys(grouped).length > 0 ? (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {Object.entries(grouped).map(([emoji, count]) => (
+              <button
+                key={emoji}
+                className="rounded-full border border-[var(--border)] bg-[var(--bg-panel)] px-2 py-0.5 text-[11px] shadow-sm transition hover:bg-[var(--bg-hover)]"
+                onClick={() => void toggleReact(emoji)}
+                type="button"
+              >
+                {emoji} {count > 1 ? count : ""}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        <div className="mt-1 flex flex-wrap gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+          {QUICK.map((e) => (
+            <button
+              key={e}
+              className="rounded-full bg-[var(--bg-panel)] p-1 text-sm shadow ring-1 ring-[var(--border)]"
+              onClick={() => void toggleReact(e)}
+              type="button"
+            >
+              {e}
+            </button>
+          ))}
+          <button
+            className="rounded-full bg-[var(--bg-panel)] p-1 shadow ring-1 ring-[var(--border)]"
+            title="More"
+            type="button"
+            onClick={() => setMenu(true)}
+          >
+            <SmilePlus className="h-4 w-4 text-[var(--text-secondary)]" />
+          </button>
         </div>
       </div>
 
-      
+      {menu ? (
+        <>
+          <button
+            aria-label="Close menu"
+            className="fixed inset-0 z-[80]"
+            type="button"
+            onClick={() => setMenu(false)}
+          />
+          <div
+            className={cn(
+              "absolute z-[85] min-w-[180px] rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] py-1 text-sm shadow-xl",
+              isOwn ? "bottom-full right-0 mb-1" : "bottom-full left-0 mb-1"
+            )}
+          >
+            <button
+              className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-[var(--bg-hover)]"
+              onClick={() => {
+                onReply?.(message)
+                setMenu(false)
+              }}
+              type="button"
+            >
+              <CornerUpLeft className="h-4 w-4" /> Reply
+            </button>
+            <button
+              className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-[var(--bg-hover)]"
+              onClick={() => {
+                onForward?.(message)
+                setMenu(false)
+              }}
+              type="button"
+            >
+              <Share2 className="h-4 w-4" /> Forward
+            </button>
+            <button
+              className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-[var(--bg-hover)]"
+              onClick={() => {
+                void navigator.clipboard.writeText(message.content)
+                setMenu(false)
+              }}
+              type="button"
+            >
+              <Copy className="h-4 w-4" /> Copy
+            </button>
+            {isOwn && message.message_type === "text" && !isDeleted ? (
+              <button
+                className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-[var(--bg-hover)]"
+                onClick={() => {
+                  onEdit?.(message)
+                  setMenu(false)
+                }}
+                type="button"
+              >
+                <Pencil className="h-4 w-4" /> Edit
+              </button>
+            ) : null}
+            {!isDeleted ? (
+              <button
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-rose-600 hover:bg-[var(--bg-hover)]"
+                onClick={() => {
+                  onDelete?.(message)
+                  setMenu(false)
+                }}
+                type="button"
+              >
+                <Trash2 className="h-4 w-4" /> Delete
+              </button>
+            ) : null}
+          </div>
+        </>
+      ) : null}
     </motion.div>
-  );
+  )
 }

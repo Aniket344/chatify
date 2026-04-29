@@ -1,159 +1,238 @@
-"use client";
+"use client"
 
-import { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useRef, useState } from "react"
+import { AnimatePresence, motion } from "framer-motion"
+import Picker from "@emoji-mart/react"
+import data from "@emoji-mart/data"
+import { Mic, Paperclip, SendHorizontal, Smile, X } from "lucide-react"
+import { useVoiceRecorder } from "@/hooks/useVoiceRecorder"
+import { uploadChatFile } from "@/lib/chat/storage"
+import { useUiStore } from "@/store/ui-store"
 
 interface InputBoxProps {
-  disabled?: boolean;
-  isSending?: boolean;
-  onSendMessage: (content: string) => Promise<void>;
-  onTypingChange: (isTyping: boolean) => void;
+  conversationId?: string | null
+  disabled?: boolean
+  isSending?: boolean
+  onSendMessage: (
+    content: string,
+    extras?: { replyToId?: string | null; fileUrl?: string | null; messageType?: "text" | "image" | "file" | "voice" }
+  ) => Promise<void>
+  onTypingChange: (isTyping: boolean) => void
 }
 
 export default function InputBox({
+  conversationId,
   disabled = false,
   isSending = false,
   onSendMessage,
   onTypingChange,
 }: InputBoxProps) {
-  const [message, setMessage] = useState("");
-  const [isFocused, setIsFocused] = useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [message, setMessage] = useState("")
+  const [isFocused, setIsFocused] = useState(false)
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const voice = useVoiceRecorder()
+  const replyingTo = useUiStore((s) => s.replyingTo)
+  const setReplyingTo = useUiStore((s) => s.setReplyingTo)
 
   const adjustHeight = () => {
-    const textarea = textareaRef.current;
+    const textarea = textareaRef.current
     if (textarea) {
-      textarea.style.height = "auto";
-      textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
+      textarea.style.height = "auto"
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`
     }
-  };
+  }
 
   useEffect(() => {
-    adjustHeight();
-  }, [message]);
+    adjustHeight()
+  }, [message])
 
   const sendMessage = async () => {
-    const trimmedMessage = message.trim();
-    if (!trimmedMessage || disabled || isSending) return;
-
-    await onSendMessage(trimmedMessage);
-    setMessage("");
-    onTypingChange(false);
-    
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
+    const trimmedMessage = message.trim()
+    if (!trimmedMessage || disabled || isSending) {
+      return
     }
-  };
+
+    await onSendMessage(trimmedMessage, {
+      replyToId: replyingTo?.id ?? undefined,
+    })
+    setMessage("")
+    setReplyingTo(null)
+    onTypingChange(false)
+
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto"
+    }
+  }
 
   const handleKeyDown = async (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      await sendMessage();
+      e.preventDefault()
+      await sendMessage()
     }
-  };
+  }
+
+  const onFile = async (file: File | null) => {
+    if (!file || !conversationId || disabled || isSending) {
+      return
+    }
+    const isImage = file.type.startsWith("image/")
+    const bucket = isImage ? "chat-attachments" : "chat-attachments"
+    const { publicUrl } = await uploadChatFile(conversationId, file, bucket)
+    await onSendMessage(isImage ? "Photo" : file.name || "File", {
+      fileUrl: publicUrl,
+      messageType: isImage ? "image" : "file",
+      replyToId: replyingTo?.id ?? undefined,
+    })
+    setReplyingTo(null)
+    onTypingChange(false)
+    if (fileRef.current) {
+      fileRef.current.value = ""
+    }
+  }
+
+  const toggleVoice = async () => {
+    if (!conversationId || disabled || isSending) {
+      return
+    }
+    if (!voice.isRecording) {
+      await voice.start()
+      return
+    }
+    const blob = await voice.stop()
+    if (!blob) {
+      return
+    }
+    const file = new File([blob], "voice.webm", { type: "audio/webm" })
+    const { publicUrl } = await uploadChatFile(conversationId, file, "voice-notes")
+    await onSendMessage(".", {
+      fileUrl: publicUrl,
+      messageType: "voice",
+      replyToId: replyingTo?.id ?? undefined,
+    })
+    setReplyingTo(null)
+    onTypingChange(false)
+  }
 
   return (
-    <div className="border-t border-white/10 bg-gradient-to-t from-black/20 to-transparent px-6 py-5">
-      <div className={`relative rounded-2xl transition-all duration-300 ${
-        isFocused ? "shadow-[0_0_0_2px_rgba(139,92,246,0.3)]" : ""
-      }`}>
-        <div className="flex items-end gap-3 rounded-2xl border border-white/10 bg-white/5 p-2 backdrop-blur">
-          {/* Emoji button */}
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-400 transition hover:bg-white/10 hover:text-white"
+    <div className="border-t border-[var(--border)] bg-[var(--bg-panel)] px-3 py-3">
+      {replyingTo ? (
+        <div className="mb-2 flex items-center justify-between gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 text-xs">
+          <div className="min-w-0">
+            <p className="font-semibold text-[var(--accent)]">Replying to</p>
+            <p className="truncate text-[var(--text-secondary)]">{replyingTo.content}</p>
+          </div>
+          <button
+            aria-label="Cancel reply"
+            className="shrink-0 rounded-full p-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+            onClick={() => setReplyingTo(null)}
             type="button"
           >
-            😊
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      ) : null}
+
+      <div
+        className={`relative rounded-2xl transition-all duration-200 ${
+          isFocused ? "ring-2 ring-[var(--accent)]/40" : ""
+        }`}
+      >
+        <div className="flex items-end gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] p-2">
+          <input ref={fileRef} className="hidden" onChange={(e) => void onFile(e.target.files?.[0] ?? null)} type="file" />
+
+          <motion.button
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--text-secondary)] transition hover:bg-[var(--bg-hover)]"
+            type="button"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowEmojiPicker((v) => !v)}
+          >
+            <Smile className="h-5 w-5" />
           </motion.button>
 
-          {/* Text input */}
           <textarea
             ref={textareaRef}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
-            className="max-h-32 min-h-[40px] flex-1 resize-none bg-transparent py-2 text-sm leading-6 text-white outline-none placeholder:text-slate-500 disabled:cursor-not-allowed"
+            className="max-h-32 min-h-[40px] flex-1 resize-none bg-transparent py-2 text-sm leading-6 text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] disabled:cursor-not-allowed"
             disabled={disabled}
+            onBlur={() => setIsFocused(false)}
             onChange={(e) => {
-              const value = e.target.value;
-              setMessage(value);
-              onTypingChange(value.trim().length > 0);
+              const value = e.target.value
+              setMessage(value)
+              onTypingChange(value.trim().length > 0)
             }}
+            onFocus={() => setIsFocused(true)}
             onKeyDown={handleKeyDown}
-            placeholder="Type your message..."
+            placeholder="Type a message"
             rows={1}
             value={message}
           />
 
-          {/* Attachment button */}
           <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-400 transition hover:bg-white/10 hover:text-white"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--text-secondary)] transition hover:bg-[var(--bg-hover)]"
             type="button"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => fileRef.current?.click()}
           >
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-            </svg>
+            <Paperclip className="h-5 w-5" />
           </motion.button>
 
-          {/* Send button */}
-          <motion.button
-            whileHover={{ scale: message.trim() ? 1.05 : 1 }}
-            whileTap={{ scale: message.trim() ? 0.95 : 1 }}
-            onClick={() => void sendMessage()}
-            disabled={disabled || isSending || !message.trim()}
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-all ${
-              message.trim() && !isSending
-                ? "bg-gradient-to-r from-violet-600 to-blue-500 text-white shadow-lg"
-                : "bg-white/5 text-slate-500"
-            }`}
-            type="button"
-          >
-            {isSending ? (
-              <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-            ) : (
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-              </svg>
-            )}
-          </motion.button>
+          {message.trim() ? (
+            <motion.button
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-white shadow-md transition disabled:opacity-50"
+              disabled={disabled || isSending}
+              type="button"
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.96 }}
+              onClick={() => void sendMessage()}
+            >
+              {isSending ? (
+                <svg className="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              ) : (
+                <SendHorizontal className="h-5 w-5" />
+              )}
+            </motion.button>
+          ) : (
+            <motion.button
+              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white shadow-md ${
+                voice.isRecording ? "bg-rose-500" : "bg-[var(--accent)]"
+              }`}
+              disabled={disabled || isSending}
+              type="button"
+              whileTap={{ scale: 0.96 }}
+              onClick={() => void toggleVoice()}
+            >
+              <Mic className="h-5 w-5" />
+            </motion.button>
+          )}
         </div>
 
-        {/* Emoji picker (simplified) */}
         <AnimatePresence>
-          {showEmojiPicker && (
+          {showEmojiPicker ? (
             <motion.div
-              initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="absolute bottom-full left-0 mb-2 rounded-xl border border-white/10 bg-[#0a0a0f] p-2 backdrop-blur"
+              className="absolute bottom-full left-0 z-50 mb-2 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] shadow-xl"
+              exit={{ opacity: 0, y: 6 }}
+              initial={{ opacity: 0, y: 6 }}
             >
-              <div className="grid grid-cols-8 gap-1">
-                {["😊", "😂", "❤️", "👍", "🎉", "🔥", "✨", "💯", "😢", "😡", "🙏", "🤔"].map((emoji) => (
-                  <button
-                    key={emoji}
-                    onClick={() => {
-                      setMessage(message + emoji);
-                      setShowEmojiPicker(false);
-                      textareaRef.current?.focus();
-                    }}
-                    className="rounded-lg p-2 text-lg transition hover:bg-white/10"
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
+              <Picker
+                data={data}
+                onEmojiSelect={(e: { native: string }) => {
+                  setMessage((m) => m + e.native)
+                  setShowEmojiPicker(false)
+                  textareaRef.current?.focus()
+                }}
+                theme="light"
+              />
             </motion.div>
-          )}
+          ) : null}
         </AnimatePresence>
       </div>
     </div>
-  );
+  )
 }

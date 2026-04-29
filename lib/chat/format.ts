@@ -29,10 +29,20 @@ export function isSameMessageGroup(previous: MessageRow | undefined, current: Me
   return previous.sender_id === current.sender_id && currentTime - previousTime < 5 * 60 * 1000
 }
 
-export function getMessageStatus(message: MessageRow, isOwn: boolean) {
+export type MessageDeliveryStatus = "Sending" | "Sent" | "Delivered" | "Read" | null
+
+export function getMessageStatus(message: MessageRow, isOwn: boolean): MessageDeliveryStatus {
   if (!isOwn) {
     return null
   }
 
-  return message.seen_at ? "Seen" : "Delivered"
+  if (message.seen_at) {
+    return "Read"
+  }
+
+  if (message.receiver_id) {
+    return "Delivered"
+  }
+
+  return "Sent"
 }

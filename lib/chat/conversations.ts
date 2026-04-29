@@ -11,3 +11,16 @@ export async function getOrCreateDirectConversation(otherUserId: string) {
 
   return data
 }
+
+export async function createGroupConversation(groupName: string, memberIds: string[]) {
+  const { data, error } = await supabase.rpc("create_group", {
+    group_name: groupName,
+    member_ids: memberIds,
+  })
+
+  if (error) {
+    throw error
+  }
+
+  return data as string
+}

@@ -8,6 +8,9 @@ interface ChatState {
   presenceByUserId: Record<string, boolean>
   selectedUser: ChatUser | null
   typingByUserId: Record<string, boolean>
+  isGroupConversation: boolean
+  groupTitle: string | null
+  groupAvatarUrl: string | null
   addMessage: (message: MessageRow) => void
   clearMessages: () => void
   reset: () => void
@@ -15,6 +18,11 @@ interface ChatState {
   setMessages: (messages: MessageRow[]) => void
   setPresenceMap: (presenceByUserId: Record<string, boolean>) => void
   setSelectedChat: (selectedUser: ChatUser | null, conversationId: string | null) => void
+  setSelectedGroup: (
+    conversationId: string,
+    title: string,
+    avatarUrl: string | null
+  ) => void
   setTypingState: (userId: string, isTyping: boolean) => void
   updateMessage: (message: MessageRow) => void
 }
@@ -26,6 +34,9 @@ const initialState = {
   presenceByUserId: {},
   selectedUser: null,
   typingByUserId: {},
+  isGroupConversation: false,
+  groupTitle: null,
+  groupAvatarUrl: null,
 }
 
 export const useChatStore = create<ChatState>((set) => ({
@@ -35,6 +46,19 @@ export const useChatStore = create<ChatState>((set) => ({
     set({
       selectedUser,
       activeConversationId,
+      messages: [],
+      typingByUserId: {},
+      isGroupConversation: false,
+      groupTitle: null,
+      groupAvatarUrl: null,
+    }),
+  setSelectedGroup: (activeConversationId, groupTitle, groupAvatarUrl) =>
+    set({
+      selectedUser: null,
+      activeConversationId,
+      groupTitle,
+      groupAvatarUrl,
+      isGroupConversation: true,
       messages: [],
       typingByUserId: {},
     }),
