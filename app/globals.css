@@ -1,5 +1,6 @@
 @import "tailwindcss";
 
+
 /* Light (default / WhatsApp Web inspired) */
 :root {
   --background: #f0f2f5;
@@ -120,12 +121,6 @@ body {
   }
 }
 
-button:focus-visible,
-input:focus-visible,
-textarea:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
 
 .animate-shimmer {
   background: linear-gradient(
