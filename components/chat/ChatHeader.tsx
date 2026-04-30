@@ -1,6 +1,6 @@
 "use client"
 
-import { MoreVertical, Phone, Search, Video } from "lucide-react"
+import { ArrowLeft, MoreVertical, Phone, Search, Video } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { motion } from "framer-motion"
 import { Avatar } from "@/components/ui/Avatar"
@@ -14,12 +14,14 @@ export function ChatHeader({
   isTyping,
   isOnline,
   lastSeenAt,
+  onBack,
 }: {
   user: ChatUser
   isGroup?: boolean
   isTyping?: boolean
   isOnline?: boolean
   lastSeenAt?: string | null
+  onBack?: () => void
 }) {
   const setContactPanelOpen = useUiStore((s) => s.setContactPanelOpen)
 
@@ -55,6 +57,13 @@ export function ChatHeader({
   return (
     <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--bg-panel)] px-3 py-2.5">
       <div className="flex min-w-0 items-center gap-3">
+        {onBack ? (
+          <div className="lg:hidden">
+            <IconButton aria-label="Back" onClick={onBack} size="sm">
+              <ArrowLeft className="h-5 w-5" />
+            </IconButton>
+          </div>
+        ) : null}
         <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
           <Avatar
             alt={getDisplayName(user)}

@@ -14,6 +14,11 @@ const items = [
 
 export function BottomNav() {
   const pathname = usePathname()
+  const shouldShow = pathname === "/chats"
+
+  if (!shouldShow) {
+    return null
+  }
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-[var(--border)] bg-[var(--bg-panel)]/95 px-2 py-1 backdrop-blur-md lg:hidden">

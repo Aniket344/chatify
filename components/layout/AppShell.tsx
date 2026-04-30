@@ -82,17 +82,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-[100dvh] max-h-[100dvh] w-full overflow-hidden bg-[var(--bg-app)]">
-      <Sidebar
-        chats={chats}
-        isLoading={chatsLoading}
-        error={chatsError}
-        onNewDirectChat={() => setStartDirectChatOpen(true)}
-        onOpenCreateGroup={() => setCreateGroupOpen(true)}
-        typingByConversationId={{}}
-      />
+    <div className="flex h-screen min-h-screen w-full overflow-hidden bg-[var(--bg-app)]">
+      <div className="hidden lg:block">
+        <Sidebar
+          chats={chats}
+          isLoading={chatsLoading}
+          error={chatsError}
+          onNewDirectChat={() => setStartDirectChatOpen(true)}
+          onOpenCreateGroup={() => setCreateGroupOpen(true)}
+          typingByConversationId={{}}
+        />
+      </div>
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col pb-14 lg:flex-row lg:pb-0">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:flex-row">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">{children}</div>
 
         {contactPanelOpen && contactUser && conversationIdFromPath ? (

@@ -14,7 +14,10 @@ export function SearchBar({
 }) {
   return (
     <div className="px-3 pb-2">
-      <div className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 shadow-sm">
+     <div
+  className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 shadow-sm"
+  style={{ margin: "10px" }}
+>
         <Search className="h-4 w-4 shrink-0 text-[var(--text-secondary)]" />
         <input
           className="min-w-0 flex-1 bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)]"

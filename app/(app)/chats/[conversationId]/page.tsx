@@ -2,16 +2,13 @@
 
 import { useCallback, useEffect, useMemo } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { Menu } from "lucide-react"
 import ChatWindow from "@/components/ChatWindow"
-import { IconButton } from "@/components/ui/IconButton"
 import { useAuth } from "@/hooks/useAuth"
 import { useMessages } from "@/hooks/useMessages"
 import { useTyping } from "@/hooks/useTyping"
 import { useChats } from "@/hooks/useChats"
 import type { ChatUser } from "@/lib/chat/models"
 import { useChatStore } from "@/store/chat-store"
-import { useUiStore } from "@/store/ui-store"
 import { useNotifications } from "@/hooks/useNotifications"
 
 export default function ConversationPage() {
@@ -29,8 +26,6 @@ export default function ConversationPage() {
   const activeConversationId = useChatStore((s) => s.activeConversationId)
   const setSelectedChat = useChatStore((s) => s.setSelectedChat)
   const setSelectedGroup = useChatStore((s) => s.setSelectedGroup)
-
-  const setSidebarOpen = useUiStore((s) => s.setSidebarOpen)
 
   const { notify } = useNotifications({
     activeConversationId: conversationId,
@@ -179,15 +174,6 @@ export default function ConversationPage() {
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <div className="flex items-center gap-2 border-b border-[var(--border)] bg-[var(--bg-panel)] px-2 py-2 lg:hidden">
-        <IconButton aria-label="Open chats" onClick={() => setSidebarOpen(true)}>
-          <Menu className="h-5 w-5" />
-        </IconButton>
-        <span className="truncate text-sm font-semibold text-[var(--text-primary)]">
-          {headerUser ? headerUser.fullName ?? "Chat" : "Chat"}
-        </span>
-      </div>
-
       {messageError ? (
         <div className="border-b border-rose-500/30 bg-rose-500/10 px-4 py-2 text-xs text-rose-600 dark:text-rose-300">
           {messageError}
@@ -213,6 +199,7 @@ export default function ConversationPage() {
         onTypingChange={(isTyping) => void broadcastTyping(isTyping)}
         presenceByUserId={presenceByUserId}
         selectedUser={headerUser}
+        onBack={() => router.push("/chats")}
       />
     </div>
   )

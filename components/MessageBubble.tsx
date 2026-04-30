@@ -1,9 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import { motion } from "framer-motion"
 import Image from "next/image"
-import { Copy, CornerUpLeft, Pencil, Share2, SmilePlus, Trash2 } from "lucide-react"
+import { Copy, CornerUpLeft, Pause, Pencil, Play, Share2, SmilePlus, Trash2 } from "lucide-react"
 import { formatMessageTime, getMessageStatus } from "@/lib/chat/format"
 import type { ChatUser, MessageRow } from "@/lib/chat/models"
 import type { ReactionRow } from "@/lib/chat/reactions"
@@ -12,6 +12,84 @@ import { cn } from "@/lib/cn"
 import { useAuth } from "@/hooks/useAuth"
 
 const QUICK = ["👍", "❤️", "😂", "😮", "😢", "🙏"]
+
+function formatAudioTime(seconds: number) {
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    return "0:00"
+  }
+  const mins = Math.floor(seconds / 60)
+  const secs = Math.floor(seconds % 60)
+  return `${mins}:${secs.toString().padStart(2, "0")}`
+}
+
+function VoiceNotePlayer({ src, isOwn }: { src: string; isOwn: boolean }) {
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [duration, setDuration] = useState(0)
+  const waveBars = useMemo(() => [4, 8, 6, 10, 5, 8, 7, 9, 4, 7, 6, 9, 5, 8, 7, 9], [])
+
+  const progress = useMemo(() => {
+    if (!duration) return 0
+    return Math.min(100, (currentTime / duration) * 100)
+  }, [currentTime, duration])
+
+  const togglePlay = async () => {
+    const audio = audioRef.current
+    if (!audio) return
+    if (audio.paused) {
+      await audio.play()
+      return
+    }
+    audio.pause()
+  }
+
+  return (
+    <div className="min-w-[190px] max-w-[250px]">
+      <audio
+        ref={audioRef}
+        preload="metadata"
+        src={src}
+        onEnded={() => setIsPlaying(false)}
+        onPause={() => setIsPlaying(false)}
+        onPlay={() => setIsPlaying(true)}
+        onLoadedMetadata={(e) => setDuration(e.currentTarget.duration || 0)}
+        onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+      />
+      <div className="flex items-center gap-4">
+        <button
+          className={cn(
+            "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-white shadow-sm",
+            isOwn ? "bg-[var(--accent)]" : "bg-[var(--text-secondary)]"
+          )}
+          onClick={() => void togglePlay()}
+          type="button"
+        >
+          {isPlaying ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+        </button>
+        <div className="flex h-4 flex-1 items-center gap-[2px]">
+          {waveBars.map((bar, idx) => {
+            const barProgress = (idx + 1) / waveBars.length
+            const active = progress / 100 >= barProgress
+            return (
+              <span
+                key={`${idx}-${bar}`}
+                className={cn(
+                  "block w-[2px] rounded-full transition-colors",
+                  active ? "bg-[var(--accent)]" : "bg-black/20"
+                )}
+                style={{ height: `${bar}px` }}
+              />
+            )
+          })}
+        </div>
+      </div>
+      <div className="mt-0.5 text-[10px] text-[var(--text-secondary)] tabular-nums">
+        {formatAudioTime(duration || currentTime)}
+      </div>
+    </div>
+  )
+}
 
 function Ticks({ status }: { status: ReturnType<typeof getMessageStatus> }) {
   if (status === "Read") {
@@ -171,9 +249,7 @@ export default function MessageBubble({
               File attachment
             </a>
           ) : null}
-          {showVoice ? (
-            <audio className="h-8 w-full max-w-[240px]" controls preload="metadata" src={message.file_url!} />
-          ) : null}
+          {showVoice ? <VoiceNotePlayer isOwn={isOwn} src={message.file_url!} /> : null}
           {!showImage && !showFile && !showVoice ? (
             <p className="whitespace-pre-wrap break-words">
               {isDeleted ? (

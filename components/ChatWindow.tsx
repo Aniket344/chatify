@@ -29,6 +29,7 @@ interface ChatWindowProps {
   isSending?: boolean
   isTyping?: boolean
   loadOlderMessages?: () => Promise<void>
+  onBack?: () => void
   messages: MessageRow[]
   onSendMessage: (
     content: string,
@@ -53,6 +54,7 @@ export default function ChatWindow({
   isSending = false,
   isTyping = false,
   loadOlderMessages,
+  onBack,
   messages,
   onSendMessage,
   onTypingChange,
@@ -145,6 +147,7 @@ export default function ChatWindow({
         isTyping={isTyping}
         lastSeenAt={!isGroup ? selectedUser?.lastSeenAt ?? null : null}
         user={headerUser}
+        onBack={onBack}
       />
 
       <div

@@ -28,10 +28,10 @@ export default function InputBox({
   onTypingChange,
 }: InputBoxProps) {
   const [message, setMessage] = useState("")
-  const [isFocused, setIsFocused] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const holdStartAtRef = useRef<number | null>(null)
   const voice = useVoiceRecorder()
   const replyingTo = useUiStore((s) => s.replyingTo)
   const setReplyingTo = useUiStore((s) => s.setReplyingTo)
@@ -92,16 +92,33 @@ export default function InputBox({
     }
   }
 
-  const toggleVoice = async () => {
+  const startVoiceHold = async () => {
     if (!conversationId || disabled || isSending) {
       return
     }
     if (!voice.isRecording) {
-      await voice.start()
+      try {
+        holdStartAtRef.current = Date.now()
+        await voice.start()
+      } catch {
+        // Permission denied or unavailable mic.
+        holdStartAtRef.current = null
+      }
+    }
+  }
+
+  const stopVoiceHold = async () => {
+    if (!conversationId || disabled || isSending) {
       return
     }
+    if (!voice.isRecording) {
+      return
+    }
+
+    const holdMs = holdStartAtRef.current ? Date.now() - holdStartAtRef.current : 0
+    holdStartAtRef.current = null
     const blob = await voice.stop()
-    if (!blob) {
+    if (!blob || holdMs < 600) {
       return
     }
     const file = new File([blob], "voice.webm", { type: "audio/webm" })
@@ -134,11 +151,7 @@ export default function InputBox({
         </div>
       ) : null}
 
-      <div
-        className={`relative rounded-2xl transition-all duration-200 ${
-          isFocused ? "ring-2 ring-[var(--accent)]/40" : ""
-        }`}
-      >
+      <div className="relative rounded-2xl transition-all duration-200">
         <div className="flex items-end gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] p-2">
           <input ref={fileRef} className="hidden" onChange={(e) => void onFile(e.target.files?.[0] ?? null)} type="file" />
 
@@ -156,13 +169,11 @@ export default function InputBox({
             ref={textareaRef}
             className="max-h-32 min-h-[40px] flex-1 resize-none bg-transparent py-2 text-sm leading-6 text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] disabled:cursor-not-allowed"
             disabled={disabled}
-            onBlur={() => setIsFocused(false)}
             onChange={(e) => {
               const value = e.target.value
               setMessage(value)
               onTypingChange(value.trim().length > 0)
             }}
-            onFocus={() => setIsFocused(true)}
             onKeyDown={handleKeyDown}
             placeholder="Type a message"
             rows={1}
@@ -205,7 +216,12 @@ export default function InputBox({
               disabled={disabled || isSending}
               type="button"
               whileTap={{ scale: 0.96 }}
-              onClick={() => void toggleVoice()}
+              onClick={(e) => e.preventDefault()}
+              onPointerDown={() => void startVoiceHold()}
+              onPointerLeave={() => void stopVoiceHold()}
+              onPointerUp={() => void stopVoiceHold()}
+              onPointerCancel={() => void stopVoiceHold()}
+              title="Hold to record voice"
             >
               <Mic className="h-5 w-5" />
             </motion.button>
